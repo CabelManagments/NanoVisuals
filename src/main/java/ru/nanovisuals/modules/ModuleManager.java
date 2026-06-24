@@ -3,6 +3,10 @@ package ru.nanovisuals.modules;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Supplier;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import ru.nanovisuals.modules.render.ChinaHat;
 import ru.nanovisuals.modules.render.EnchantmentColor;
@@ -13,15 +17,26 @@ import ru.nanovisuals.modules.render.Tracers;
 
 public class ModuleManager {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("NanoVisuals");
     private static final List<Module> MODULES = new ArrayList<>();
 
     public static void init() {
-        register(new JumpCircle());
-        register(new TargetESP());
-        register(new ChinaHat());
-        register(new Tracers());
-        register(new ItemPhysics());
-        register(new EnchantmentColor());
+        tryRegister("JumpCircle", JumpCircle::new);
+        tryRegister("TargetESP", TargetESP::new);
+        tryRegister("ChinaHat", ChinaHat::new);
+        tryRegister("Tracers", Tracers::new);
+        tryRegister("ItemPhysics", ItemPhysics::new);
+        tryRegister("EnchantmentColor", EnchantmentColor::new);
+        LOGGER.info("Registered {} modules total", MODULES.size());
+    }
+
+    private static void tryRegister(String name, Supplier<? extends Module> factory) {
+        try {
+            register(factory.get());
+            LOGGER.info("Registered module: {}", name);
+        } catch (Throwable t) {
+            LOGGER.error("Failed to register module {}: {}", name, t.toString(), t);
+        }
     }
 
     public static void register(Module module) {

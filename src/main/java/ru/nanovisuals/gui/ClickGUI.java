@@ -52,6 +52,10 @@ public class ClickGUI extends Screen {
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         ctx.fill(0, 0, this.width, this.height, COLOR_BACKDROP);
         super.render(ctx, mouseX, mouseY, delta);
+
+        String banner = "NanoVisuals \u2014 " + ModuleManager.getModules().size() + " modules";
+        ctx.drawText(this.textRenderer, banner, 8, 6, COLOR_ACCENT, true);
+
         for (Panel panel : panels) {
             panel.render(ctx, mouseX, mouseY);
         }
