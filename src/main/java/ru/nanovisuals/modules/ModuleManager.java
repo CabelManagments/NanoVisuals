@@ -4,8 +4,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import ru.nanovisuals.modules.render.ChinaHat;
+import ru.nanovisuals.modules.render.EnchantmentColor;
+import ru.nanovisuals.modules.render.ItemPhysics;
 import ru.nanovisuals.modules.render.JumpCircle;
 import ru.nanovisuals.modules.render.TargetESP;
+import ru.nanovisuals.modules.render.Tracers;
 
 public class ModuleManager {
 
@@ -14,6 +18,10 @@ public class ModuleManager {
     public static void init() {
         register(new JumpCircle());
         register(new TargetESP());
+        register(new ChinaHat());
+        register(new Tracers());
+        register(new ItemPhysics());
+        register(new EnchantmentColor());
     }
 
     public static void register(Module module) {
