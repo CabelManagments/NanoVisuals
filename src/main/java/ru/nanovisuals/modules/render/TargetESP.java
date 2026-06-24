@@ -23,7 +23,7 @@ import ru.nanovisuals.utils.Render3DUtil;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class TargetESP extends Module {
 
-    final Identifier circleTexture = Identifier.of("textures/circle.png");
+    final Identifier circleTexture = Identifier.of("nanovisuals", "textures/circle.png");
 
     float radius = 1.6f;
     float animSpeed = 600f;

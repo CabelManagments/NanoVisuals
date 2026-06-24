@@ -1,10 +1,31 @@
 package ru.nanovisuals.modules.render;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import lombok.AccessLevel;
+import lombok.experimental.FieldDefaults;
+import net.minecraft.client.render.Camera;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.RotationAxis;
+import net.minecraft.util.math.Vec3d;
+import org.joml.Vector4i;
+
+import ru.nanovisuals.events.EventHandler;
+import ru.nanovisuals.events.TickEvent;
+import ru.nanovisuals.events.WorldRenderEvent;
+import ru.nanovisuals.modules.Module;
+import ru.nanovisuals.modules.ModuleCategory;
+import ru.nanovisuals.utils.ColorUtil;
+import ru.nanovisuals.utils.Counter;
+import ru.nanovisuals.utils.Render3DUtil;
+
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class JumpCircle extends Module {
 
     private final List<Circle> circles = new ArrayList<>();
-    final Identifier circleTexture = Identifier.of("textures/circle.png");
+    final Identifier circleTexture = Identifier.of("nanovisuals", "textures/circle.png");
     boolean wasOnGround = true;
 
     public JumpCircle() {
@@ -63,18 +84,13 @@ public class JumpCircle extends Module {
 
         MatrixStack matrixStack = new MatrixStack();
 
-        matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camera.getPitch()));
-        matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(camera.getYaw() + 180.0F));
-
         matrixStack.translate(circlePos.x - cameraPos.x, circlePos.y - cameraPos.y, circlePos.z - cameraPos.z);
-
-        matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camera.getYaw()));
         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90f));
 
         MatrixStack.Entry entry = matrixStack.peek();
         Vector4i colors = new Vector4i(color, color, color, color);
 
-        Render3DUtil.drawTexture(entry, circleTexture, -scale/2, -scale/2, scale, scale, colors, true);
+        Render3DUtil.drawTexture(entry, circleTexture, -scale / 2f, -scale / 2f, scale, scale, colors, true);
     }
 
     public record Circle(Vec3d pos, Counter timer) {}

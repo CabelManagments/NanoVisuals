@@ -8,7 +8,9 @@
     "license": "ARR",
     "environment": "client",
     "entrypoints": {
-        "client": []
+        "client": [
+            "ru.nanovisuals.NanoVisualsClient"
+        ]
     },
     "depends": {
         "fabricloader": ">=0.16.9",
