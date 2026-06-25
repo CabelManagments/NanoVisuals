@@ -8,7 +8,7 @@ public class ItemPhysics extends Module {
     private static ItemPhysics INSTANCE;
 
     public ItemPhysics() {
-        super("ItemPhysics", "Item Physics", ModuleCategory.RENDER);
+        super("ItemPhysics", "Item Physics", ModuleCategory.VISUALS);
         INSTANCE = this;
     }
 

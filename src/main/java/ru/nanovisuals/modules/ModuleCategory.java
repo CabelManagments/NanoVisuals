@@ -1,7 +1,7 @@
 package ru.nanovisuals.modules;
 
 public enum ModuleCategory {
-    RENDER("Render"),
+    VISUALS("Visuals"),
     COMBAT("Combat"),
     MOVEMENT("Movement"),
     PLAYER("Player"),

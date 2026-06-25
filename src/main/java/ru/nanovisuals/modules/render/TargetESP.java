@@ -34,7 +34,7 @@ public class TargetESP extends Module {
     LivingEntity target;
 
     public TargetESP() {
-        super("TargetESP", "Target ESP", ModuleCategory.RENDER);
+        super("TargetESP", "Target ESP", ModuleCategory.VISUALS);
     }
 
     @EventHandler

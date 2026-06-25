@@ -29,7 +29,7 @@ public class Tracers extends Module {
     int colorOffset = 0;
 
     public Tracers() {
-        super("Tracers", "Tracers", ModuleCategory.RENDER);
+        super("Tracers", "Tracers", ModuleCategory.VISUALS);
     }
 
     @EventHandler

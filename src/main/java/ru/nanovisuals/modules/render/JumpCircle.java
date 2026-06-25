@@ -29,7 +29,7 @@ public class JumpCircle extends Module {
     boolean wasOnGround = true;
 
     public JumpCircle() {
-        super("JumpCircle", "Jump Circle", ModuleCategory.RENDER);
+        super("JumpCircle", "Jump Circle", ModuleCategory.VISUALS);
     }
 
     @EventHandler

@@ -32,7 +32,7 @@ public class ChinaHat extends Module {
     final float yOffset = 0.35f;
 
     public ChinaHat() {
-        super("ChinaHat", "China Hat", ModuleCategory.RENDER);
+        super("ChinaHat", "China Hat", ModuleCategory.VISUALS);
     }
 
     @EventHandler

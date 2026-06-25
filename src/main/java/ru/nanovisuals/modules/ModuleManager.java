@@ -8,6 +8,11 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ru.nanovisuals.hud.HudManager;
+import ru.nanovisuals.hud.HudWidget;
+import ru.nanovisuals.hud.widgets.ArmorHud;
+import ru.nanovisuals.hud.widgets.EffectsHud;
+import ru.nanovisuals.hud.widgets.InfoHud;
 import ru.nanovisuals.modules.render.ChinaHat;
 import ru.nanovisuals.modules.render.EnchantmentColor;
 import ru.nanovisuals.modules.render.ItemPhysics;
@@ -27,6 +32,11 @@ public class ModuleManager {
         tryRegister("Tracers", Tracers::new);
         tryRegister("ItemPhysics", ItemPhysics::new);
         tryRegister("EnchantmentColor", EnchantmentColor::new);
+
+        tryRegisterHud("ArmorHud", ArmorHud::new);
+        tryRegisterHud("EffectsHud", EffectsHud::new);
+        tryRegisterHud("InfoHud", InfoHud::new);
+
         LOGGER.info("Registered {} modules total", MODULES.size());
     }
 
@@ -36,6 +46,17 @@ public class ModuleManager {
             LOGGER.info("Registered module: {}", name);
         } catch (Throwable t) {
             LOGGER.error("Failed to register module {}: {}", name, t.toString(), t);
+        }
+    }
+
+    private static void tryRegisterHud(String name, Supplier<? extends HudWidget> factory) {
+        try {
+            HudWidget w = factory.get();
+            register(w);
+            HudManager.getInstance().register(w);
+            LOGGER.info("Registered HUD widget: {}", name);
+        } catch (Throwable t) {
+            LOGGER.error("Failed to register HUD {}: {}", name, t.toString(), t);
         }
     }
 

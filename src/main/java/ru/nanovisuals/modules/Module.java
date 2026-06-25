@@ -1,7 +1,12 @@
 package ru.nanovisuals.modules;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import net.minecraft.client.MinecraftClient;
 import ru.nanovisuals.events.EventBus;
+import ru.nanovisuals.modules.settings.Setting;
 
 public abstract class Module {
 
@@ -10,6 +15,7 @@ public abstract class Module {
     private final String name;
     private final String displayName;
     private final ModuleCategory category;
+    private final List<Setting<?>> settings = new ArrayList<>();
     private boolean enabled;
 
     public Module(String name, String displayName, ModuleCategory category) {
@@ -48,6 +54,19 @@ public abstract class Module {
             onDisable();
             EventBus.getInstance().unsubscribe(this);
         }
+    }
+
+    protected <S extends Setting<?>> S register(S setting) {
+        settings.add(setting);
+        return setting;
+    }
+
+    public List<Setting<?>> getSettings() {
+        return Collections.unmodifiableList(settings);
+    }
+
+    public boolean hasSettings() {
+        return !settings.isEmpty();
     }
 
     protected void onEnable() {

@@ -11,7 +11,7 @@ public class EnchantmentColor extends Module {
     private static EnchantmentColor INSTANCE;
 
     public EnchantmentColor() {
-        super("EnchantmentColor", "Enchantment Color", ModuleCategory.RENDER);
+        super("EnchantmentColor", "Enchantment Color", ModuleCategory.VISUALS);
         INSTANCE = this;
     }
 
