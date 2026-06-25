@@ -3,7 +3,6 @@ package ru.nanovisuals.sound;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Iterator;
-import java.util.UUID;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
@@ -38,7 +37,7 @@ public final class CombatSounds {
             SoundManager.getInstance().play(SoundManager.Sound.KILL);
             return;
         }
-        tracked.add(new Tracked(target.getUuid(), now, target.getHealth()));
+        tracked.add(new Tracked(target.getId(), now, target.getHealth()));
     }
 
     public void tick() {
@@ -60,7 +59,7 @@ public final class CombatSounds {
                 continue;
             }
 
-            Entity entity = world.getEntityLookup().get(t.id);
+            Entity entity = world.getEntityById(t.id);
             if (entity == null) {
                 if (age <= KILL_WINDOW_MS) {
                     SoundManager.getInstance().play(SoundManager.Sound.KILL);
@@ -73,5 +72,5 @@ public final class CombatSounds {
         }
     }
 
-    private record Tracked(UUID id, long attackedAt, float healthAtAttack) {}
+    private record Tracked(int id, long attackedAt, float healthAtAttack) {}
 }
