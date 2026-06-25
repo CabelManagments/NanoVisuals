@@ -72,16 +72,27 @@ public class ClickGUI extends Screen {
         lastFrameNs = now;
         if (dt > 0.1f) dt = 0.1f;
 
+        // 1) Backdrop is queued through DrawContext. Force-flush it before any
+        //    immediate BufferRenderer draws so the glass panels don't get
+        //    repainted over by the end-of-frame flush.
         ctx.fill(0, 0, this.width, this.height, BACKDROP);
-        renderTopBar(ctx);
+        ctx.draw();
 
         for (Panel p : panels) {
             p.update(dt);
         }
 
+        // 2) Per panel: render all glass geometry immediately, then queue text
+        //    and flush it with the body scissor active so labels stay crisp
+        //    and clip to the scrollable area.
         for (Panel p : panels) {
-            p.render(ctx, mouseX, mouseY);
+            p.renderGlass(ctx, mouseX, mouseY);
+            p.renderText(ctx, mouseX, mouseY);
         }
+
+        // 3) Top banner — queued; the engine flushes it at end-of-frame above
+        //    everything else.
+        renderTopBar(ctx);
 
         super.render(ctx, mouseX, mouseY, delta);
     }
@@ -326,19 +337,57 @@ public class ClickGUI extends Screen {
             activeSlider = null;
         }
 
-        void render(DrawContext ctx, int mouseX, int mouseY) {
-            MinecraftClient mc = MinecraftClient.getInstance();
+        /**
+         * PHASE 1 — glass geometry only. Drawn via raw BufferRenderer
+         * (immediate) so it lands on screen before any queued DrawContext
+         * batches flush. No text is queued here.
+         */
+        void renderGlass(DrawContext ctx, int mouseX, int mouseY) {
             float totalH = HEADER_H + renderedBodyHeight();
             GlassRender.glassPanel(ctx, x, y, PANEL_W, totalH, CORNER_R);
-
-            ctx.drawText(mc.textRenderer, category.getDisplayName(),
-                    (int) (x + 12f), (int) (y + 9f), TEXT_BRIGHT, false);
-
             renderChevron(ctx, x + PANEL_W - 16f, y + HEADER_H / 2f, openness.position);
 
             int accentBarAlpha = (int) (180f * openness.position + 40f);
             int accentBar = ColorUtil.withAlpha(ACCENT & 0x00FFFFFF, accentBarAlpha);
             GlassRender.fillRounded(ctx, x + 10f, y + HEADER_H - 3f, 18f, 2f, 1f, accentBar, accentBar);
+
+            float bodyTop = y + HEADER_H;
+            float bodyH = renderedBodyHeight();
+            if (bodyH >= 1f) {
+                ctx.enableScissor((int) x, (int) bodyTop, (int) (x + PANEL_W), (int) (bodyTop + bodyH));
+
+                float rowY = bodyTop + 4f - scroll;
+                for (Row r : rows) {
+                    updateRowHover(r, rowY, mouseX, mouseY);
+                    renderRowGlass(ctx, r, rowY);
+                    rowY += ROW_H;
+                    if (r.expandSpring.position > 0.001f) {
+                        float h = r.expandSpring.position * r.settingsHeight();
+                        renderSettingsGlass(ctx, r, rowY, h);
+                        rowY += h;
+                    }
+                }
+
+                ctx.disableScissor();
+            }
+
+            if (maxScroll > 0.5f) {
+                renderScrollIndicator(ctx, bodyTop, bodyH);
+            }
+        }
+
+        /**
+         * PHASE 2 — text and icons. All queued through DrawContext. We force a
+         * flush between header (no scissor) and body (scrolled, scissored) so
+         * labels render crisp and clip correctly to the panel body.
+         */
+        void renderText(DrawContext ctx, int mouseX, int mouseY) {
+            MinecraftClient mc = MinecraftClient.getInstance();
+
+            // Header text — no scissor needed
+            ctx.drawText(mc.textRenderer, category.getDisplayName(),
+                    (int) (x + 12f), (int) (y + 9f), TEXT_BRIGHT, false);
+            ctx.draw();
 
             float bodyTop = y + HEADER_H;
             float bodyH = renderedBodyHeight();
@@ -348,42 +397,37 @@ public class ClickGUI extends Screen {
 
             float rowY = bodyTop + 4f - scroll;
             for (Row r : rows) {
-                renderRow(ctx, mc, r, rowY, mouseX, mouseY);
+                renderRowText(ctx, mc, r, rowY);
                 rowY += ROW_H;
                 if (r.expandSpring.position > 0.001f) {
                     float h = r.expandSpring.position * r.settingsHeight();
-                    renderSettings(ctx, mc, r, rowY, h, mouseX, mouseY);
+                    renderSettingsText(ctx, mc, r, rowY, h);
                     rowY += h;
                 }
             }
 
+            // Flush body text WHILE scissor is still active so it clips to the body.
+            ctx.draw();
             ctx.disableScissor();
-
-            if (maxScroll > 0.5f) {
-                renderScrollIndicator(ctx, bodyTop, bodyH);
-            }
         }
 
-        private void renderRow(DrawContext ctx, MinecraftClient mc, Row r,
-                               float rowY, int mouseX, int mouseY) {
+        private void updateRowHover(Row r, float rowY, int mouseX, int mouseY) {
             boolean hovered = mouseX >= x && mouseX <= x + PANEL_W
                     && mouseY >= rowY && mouseY <= rowY + ROW_H;
             float hoverT = MathUtil.lerp(r.hoverGlow.position, hovered ? 1f : 0f, 0.3f);
             r.hoverGlow.snap(hoverT);
+        }
 
+        private void renderRowGlass(DrawContext ctx, Row r, float rowY) {
+            float glow = r.hoverGlow.position;
             if (r.module.isEnabled()) {
-                int glow = ColorUtil.withAlpha(ACCENT & 0x00FFFFFF, 40);
-                int glow0 = ColorUtil.withAlpha(ACCENT & 0x00FFFFFF, 0);
-                GlassRender.fillRounded(ctx, x + 4f, rowY + 1f, PANEL_W - 8f, ROW_H - 2f, 6f, glow, glow0);
-            } else if (hovered) {
-                int hov = ColorUtil.rgba(255, 255, 255, 18);
+                int c1 = ColorUtil.withAlpha(ACCENT & 0x00FFFFFF, 40);
+                int c0 = ColorUtil.withAlpha(ACCENT & 0x00FFFFFF, 0);
+                GlassRender.fillRounded(ctx, x + 4f, rowY + 1f, PANEL_W - 8f, ROW_H - 2f, 6f, c1, c0);
+            } else if (glow > 0.02f) {
+                int hov = ColorUtil.rgba(255, 255, 255, (int) (18f * glow + 4f));
                 GlassRender.fillRounded(ctx, x + 4f, rowY + 1f, PANEL_W - 8f, ROW_H - 2f, 6f, hov, hov);
             }
-
-            int textColor = r.module.isEnabled() ? TEXT_BRIGHT : TEXT_DIM;
-            ctx.drawText(mc.textRenderer, r.module.getDisplayName(),
-                    (int) (x + 12f), (int) (rowY + (ROW_H - mc.textRenderer.fontHeight) / 2f + 1f),
-                    textColor, false);
 
             float dotX = x + PANEL_W - 14f;
             float dotY = rowY + ROW_H / 2f;
@@ -401,63 +445,77 @@ public class ClickGUI extends Screen {
             }
         }
 
-        private void renderSettings(DrawContext ctx, MinecraftClient mc, Row r,
-                                    float sy, float visibleH, int mouseX, int mouseY) {
+        private void renderRowText(DrawContext ctx, MinecraftClient mc, Row r, float rowY) {
+            int textColor = r.module.isEnabled() ? TEXT_BRIGHT : TEXT_DIM;
+            ctx.drawText(mc.textRenderer, r.module.getDisplayName(),
+                    (int) (x + 12f), (int) (rowY + (ROW_H - mc.textRenderer.fontHeight) / 2f + 1f),
+                    textColor, false);
+        }
+
+        private void renderSettingsGlass(DrawContext ctx, Row r, float sy, float visibleH) {
             int bg  = ColorUtil.rgba(255, 255, 255, 10);
             int bg0 = ColorUtil.rgba(255, 255, 255, 0);
             GlassRender.fillRounded(ctx, x + 6f, sy, PANEL_W - 12f, visibleH, 6f, bg, bg0);
 
             float t = sy + 4f;
             float scale = r.expandSpring.position;
-            float opacity = MathUtil.clamp(scale, 0f, 1f);
+            int alpha = (int) (255f * MathUtil.clamp(scale, 0f, 1f));
 
             for (Setting<?> s : r.module.getSettings()) {
-                float topClip = sy;
-                float botClip = sy + visibleH;
-                if (t + SETTING_H < topClip || t > botClip) {
+                if (t + SETTING_H < sy || t > sy + visibleH) {
                     t += SETTING_H;
                     continue;
                 }
-                renderSetting(ctx, mc, s, t, opacity, mouseX, mouseY);
+                if (s instanceof BooleanSetting b) {
+                    float tx = x + PANEL_W - 30f;
+                    float ty2 = t + 3f;
+                    int trackOff = ColorUtil.rgba(60, 65, 80, alpha);
+                    int trackOn  = ColorUtil.withAlpha(ACCENT & 0x00FFFFFF, alpha);
+                    int track = b.getValue() ? trackOn : trackOff;
+                    GlassRender.fillRounded(ctx, tx, ty2, 18f, 8f, 4f, track, track);
+                    float knobX = b.getValue() ? tx + 11f : tx + 1f;
+                    int knob = ColorUtil.rgba(245, 245, 250, alpha);
+                    GlassRender.fillRounded(ctx, knobX, ty2 + 1f, 6f, 6f, 3f, knob, knob);
+                } else if (s instanceof NumberSetting n) {
+                    float trackX = x + 14f;
+                    float trackY = t + 12f;
+                    float trackW = PANEL_W - 28f;
+                    int back = ColorUtil.rgba(50, 55, 70, alpha);
+                    GlassRender.fillRounded(ctx, trackX, trackY, trackW, 2f, 1f, back, back);
+                    float fillW = trackW * n.toUnit();
+                    int fill = ColorUtil.withAlpha(ACCENT & 0x00FFFFFF, alpha);
+                    int fillEnd = ColorUtil.withAlpha(ACCENT & 0x00FFFFFF, alpha / 2);
+                    GlassRender.fillRounded(ctx, trackX, trackY, fillW, 2f, 1f, fill, fillEnd);
+                }
                 t += SETTING_H;
             }
         }
 
-        private void renderSetting(DrawContext ctx, MinecraftClient mc, Setting<?> s,
-                                   float ty, float opacity, int mouseX, int mouseY) {
-            int alpha = (int) (255f * opacity);
-            if (s instanceof BooleanSetting b) {
-                int label = ColorUtil.withAlpha(TEXT_DIM & 0x00FFFFFF, alpha);
-                ctx.drawText(mc.textRenderer, s.getName(),
-                        (int) (x + 14f), (int) (ty + 4f), label, false);
-                float tx = x + PANEL_W - 30f;
-                float ty2 = ty + 3f;
-                int trackOff = ColorUtil.rgba(60, 65, 80, alpha);
-                int trackOn  = ColorUtil.withAlpha(ACCENT & 0x00FFFFFF, alpha);
-                int track = b.getValue() ? trackOn : trackOff;
-                GlassRender.fillRounded(ctx, tx, ty2, 18f, 8f, 4f, track, track);
-                float knobX = b.getValue() ? tx + 11f : tx + 1f;
-                int knob = ColorUtil.rgba(245, 245, 250, alpha);
-                GlassRender.fillRounded(ctx, knobX, ty2 + 1f, 6f, 6f, 3f, knob, knob);
-            } else if (s instanceof NumberSetting n) {
-                int label = ColorUtil.withAlpha(TEXT_DIM & 0x00FFFFFF, alpha);
-                ctx.drawText(mc.textRenderer, s.getName(),
-                        (int) (x + 14f), (int) (ty + 2f), label, false);
-                String val = formatNumber(n.getValue(), n.getStep());
-                int valColor = ColorUtil.withAlpha(TEXT_BRIGHT & 0x00FFFFFF, alpha);
-                int valW = mc.textRenderer.getWidth(val);
-                ctx.drawText(mc.textRenderer, val,
-                        (int) (x + PANEL_W - 14f - valW), (int) (ty + 2f), valColor, false);
+        private void renderSettingsText(DrawContext ctx, MinecraftClient mc, Row r,
+                                       float sy, float visibleH) {
+            float t = sy + 4f;
+            float scale = r.expandSpring.position;
+            int alpha = (int) (255f * MathUtil.clamp(scale, 0f, 1f));
 
-                float trackX = x + 14f;
-                float trackY = ty + 12f;
-                float trackW = PANEL_W - 28f;
-                int back = ColorUtil.rgba(50, 55, 70, alpha);
-                GlassRender.fillRounded(ctx, trackX, trackY, trackW, 2f, 1f, back, back);
-                float fillW = trackW * n.toUnit();
-                int fill = ColorUtil.withAlpha(ACCENT & 0x00FFFFFF, alpha);
-                int fillEnd = ColorUtil.withAlpha(ACCENT & 0x00FFFFFF, alpha / 2);
-                GlassRender.fillRounded(ctx, trackX, trackY, fillW, 2f, 1f, fill, fillEnd);
+            for (Setting<?> s : r.module.getSettings()) {
+                if (t + SETTING_H < sy || t > sy + visibleH) {
+                    t += SETTING_H;
+                    continue;
+                }
+                int label = ColorUtil.withAlpha(TEXT_DIM & 0x00FFFFFF, alpha);
+                if (s instanceof BooleanSetting) {
+                    ctx.drawText(mc.textRenderer, s.getName(),
+                            (int) (x + 14f), (int) (t + 4f), label, false);
+                } else if (s instanceof NumberSetting n) {
+                    ctx.drawText(mc.textRenderer, s.getName(),
+                            (int) (x + 14f), (int) (t + 2f), label, false);
+                    String val = formatNumber(n.getValue(), n.getStep());
+                    int valColor = ColorUtil.withAlpha(TEXT_BRIGHT & 0x00FFFFFF, alpha);
+                    int valW = mc.textRenderer.getWidth(val);
+                    ctx.drawText(mc.textRenderer, val,
+                            (int) (x + PANEL_W - 14f - valW), (int) (t + 2f), valColor, false);
+                }
+                t += SETTING_H;
             }
         }
 
