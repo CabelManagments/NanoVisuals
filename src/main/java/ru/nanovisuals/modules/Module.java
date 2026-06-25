@@ -7,6 +7,7 @@ import java.util.List;
 import net.minecraft.client.MinecraftClient;
 import ru.nanovisuals.events.EventBus;
 import ru.nanovisuals.modules.settings.Setting;
+import ru.nanovisuals.sound.SoundManager;
 
 public abstract class Module {
 
@@ -50,9 +51,11 @@ public abstract class Module {
         if (enabled) {
             EventBus.getInstance().subscribe(this);
             onEnable();
+            SoundManager.getInstance().play(SoundManager.Sound.ENABLE);
         } else {
             onDisable();
             EventBus.getInstance().unsubscribe(this);
+            SoundManager.getInstance().play(SoundManager.Sound.DISABLE);
         }
     }
 
